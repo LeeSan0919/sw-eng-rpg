@@ -8,6 +8,8 @@
 | 팀원 B | 이 산 | 2022240219 | 경영학부/소프트웨어학과 | LeeSan0919 |
 
 - GitHub 저장소: https://github.com/LeeSan0919/sw-eng-rpg
+- 프로젝트 제안서: https://github.com/LeeSan0919/sw-eng-rpg/edit/main/proposal.md
+  
 ## 2. 프로젝트 주제 및 개요
 
 ### 프로젝트 주제
