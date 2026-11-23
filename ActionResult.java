@@ -1,3 +1,5 @@
+package swg_eng_rpg_001;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -5,15 +7,16 @@ import java.util.List;
 /** 화면에 전달하는 읽기 전용 결과. 캐릭터 객체 대신 시점별 수치를 보관한다. */
 public final class ActionResult {
     public enum Outcome { ONGOING, VICTORY, DEFEAT }
-    public enum EventType { PLAYER_ATTACK, DEFEND, AI_AGENT, ENEMY_ATTACK, VICTORY, DEFEAT, REWARD }
+    public enum EventType { PLAYER_ATTACK, DEFEND, AI_AGENT, RECOVERY, ENEMY_ATTACK, VICTORY, DEFEAT, REWARD }
 
     public static final class Snapshot {
         public final int playerHp, playerMaxHp, playerStrength, playerLevel;
         public final long experience, requiredExperience;
         public final int enemyHp, enemyMaxHp, charge, turn;
+        public final int recoveryCount;
         public final Outcome outcome;
 
-        Snapshot(Hacker player, SecurityProgram enemy, int charge, int turn, Outcome outcome) {
+        Snapshot(Hacker player, SecurityProgram enemy, int charge, int turn, Outcome outcome, int recoveryCount) {
             playerHp = player.getHealthPoint();
             playerMaxHp = player.getMaxHealthPoint();
             playerStrength = player.getStrength();
@@ -25,6 +28,7 @@ public final class ActionResult {
             this.charge = charge;
             this.turn = turn;
             this.outcome = outcome;
+            this.recoveryCount = recoveryCount;
         }
     }
 
@@ -32,12 +36,18 @@ public final class ActionResult {
         public final EventType type;
         public final String message;
         public final int damage;
+        public final int recovered;
         public final Snapshot state;
 
         BattleEvent(EventType type, String message, int damage, Snapshot state) {
+            this(type, message, damage, 0, state);
+        }
+
+        BattleEvent(EventType type, String message, int damage, int recovered, Snapshot state) {
             this.type = type;
             this.message = message;
             this.damage = damage;
+            this.recovered = recovered;
             this.state = state;
         }
     }
