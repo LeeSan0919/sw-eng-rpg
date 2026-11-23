@@ -1,3 +1,5 @@
+package swg_eng_rpg_001;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -9,17 +11,25 @@ public class BattleManager {
 
     private final Hacker player;
     private final SecurityProgram enemy;
+    private final Inventory inventory;
     private int charge;
     private int turn;
     private boolean awaitingPresentation;
     private ActionResult.Outcome outcome = ActionResult.Outcome.ONGOING;
 
     public BattleManager(Hacker player, SecurityProgram enemy) {
+        this(player, enemy, new Inventory(0));
+    }
+
+    /** 게임 전체에서 사용하는 인벤토리를 전달한다. */
+    public BattleManager(Hacker player, SecurityProgram enemy, Inventory inventory) {
         if (player == null || enemy == null || player.isDead() || enemy.isDead()) {
             throw new IllegalArgumentException("살아 있는 플레이어와 적이 필요합니다.");
         }
         this.player = player;
         this.enemy = enemy;
+        if (inventory == null) throw new IllegalArgumentException("인벤토리가 필요합니다.");
+        this.inventory = inventory;
     }
 
     /** 한 번의 플레이어 행동과 필요한 적 반격을 처리한다. */
@@ -28,7 +38,10 @@ public class BattleManager {
         if (awaitingPresentation) return reject("이전 행동의 연출이 진행 중입니다.");
         if (action == null) return reject("행동을 선택하세요.");
         if (player.isDead() || enemy.isDead()) return reject("전투 밖에서 캐릭터 상태가 변경되었습니다.");
-        if (action == BattleAction.USE_RECOVERY) return reject("복구 프로그램은 인벤토리 연결 후 사용할 수 있습니다.");
+        if (action == BattleAction.USE_RECOVERY) {
+            if (inventory.getRecoveryCount() == 0) return reject("복구 프로그램이 없습니다.");
+            if (player.getHealthPoint() == player.getMaxHealthPoint()) return reject("이미 최대 체력입니다.");
+        }
         if (action == BattleAction.CALL_AI_AGENT && charge < REQUIRED_CHARGE) {
             return reject("AI 분석이 완료되지 않았습니다.");
         }
@@ -46,7 +59,11 @@ public class BattleManager {
             add(events, ActionResult.EventType.AI_AGENT, "ChatGPT 에이전트 호출! " + damage + " 피해", damage);
         } else {
             charge = Math.min(REQUIRED_CHARGE, charge + 1);
-            if (defending) {
+            if (action == BattleAction.USE_RECOVERY) {
+                int recovered = inventory.useRecovery(player);
+                events.add(new ActionResult.BattleEvent(ActionResult.EventType.RECOVERY,
+                        "복구 프로그램 사용: 체력 +" + recovered, 0, recovered, getSnapshot()));
+            } else if (defending) {
                 add(events, ActionResult.EventType.DEFEND, "방어막 전개: 이번 반격 피해를 절반으로 줄입니다.", 0);
             } else {
                 int before = enemy.getHealthPoint();
@@ -99,7 +116,11 @@ public class BattleManager {
     }
 
     public ActionResult.Snapshot getSnapshot() {
-        return new ActionResult.Snapshot(player, enemy, charge, turn, outcome);
+        return new ActionResult.Snapshot(player, enemy, charge, turn, outcome, inventory.getRecoveryCount());
+    }
+
+    public boolean canUseRecovery() {
+        return canAct() && inventory.canUseRecovery(player);
     }
 
     private ActionResult reject(String message) {
