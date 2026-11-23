@@ -7,15 +7,16 @@ public class Main {
     public static void main(String[] args) {
         Hacker hacker = new Hacker("해커");
         SecurityProgram firewall = new SecurityProgram("firewall", "방화벽", 80, 10, 120);
-        BattleManager battle = new BattleManager(hacker, firewall);
+        Inventory inventory = new Inventory();
+        BattleManager battle = new BattleManager(hacker, firewall, inventory);
 
         System.out.println("=== 해커 RPG: 방화벽 전투 ===");
-        System.out.println("공격·방어 3회 후 AI 에이전트를 호출할 수 있습니다.");
+        System.out.println("공격·방어·복구 사용에 성공할 때마다 AI 분석이 1 충전됩니다.");
 
         try (Scanner scanner = new Scanner(System.in)) {
             while (battle.getSnapshot().outcome == ActionResult.Outcome.ONGOING) {
                 showStatus(battle.getSnapshot());
-                System.out.println("1. 일반 공격  2. 방어  3. ChatGPT 에이전트 호출  0. 종료");
+                System.out.println("1. 공격  2. 방어  3. AI 에이전트  4. 복구 사용  5. 인벤토리  0. 종료");
                 System.out.print("행동 선택 > ");
 
                 if (!scanner.hasNextLine()) {
@@ -23,6 +24,12 @@ public class Main {
                     return;
                 }
                 String input = scanner.nextLine().trim();
+                if (input.equals("5")) {
+                    System.out.println("\n[인벤토리] 복구 프로그램: " + battle.getSnapshot().recoveryCount + "개");
+                    System.out.println("효과: 체력 최대 " + Inventory.RECOVERY_AMOUNT + " 회복. 전투 중 사용 성공 시 한 턴 소비.");
+                    System.out.println("인벤토리 확인은 턴을 소비하지 않습니다.");
+                    continue;
+                }
                 if (input.equals("0")) {
                     System.out.println("전투를 중단합니다. 진행 상태는 저장되지 않습니다.");
                     return;
@@ -33,8 +40,9 @@ public class Main {
                     case "1": action = BattleAction.ATTACK; break;
                     case "2": action = BattleAction.DEFEND; break;
                     case "3": action = BattleAction.CALL_AI_AGENT; break;
+                    case "4": action = BattleAction.USE_RECOVERY; break;
                     default:
-                        System.out.println("0~3 중 하나를 입력하세요. 턴은 소비되지 않습니다.");
+                        System.out.println("0~5 중 하나를 입력하세요. 턴은 소비되지 않습니다.");
                         continue;
                 }
 
@@ -65,6 +73,7 @@ public class Main {
                 + " | 공격력 " + state.playerStrength);
         System.out.println("경험치: " + state.experience + "/" + state.requiredExperience);
         System.out.println("방화벽 | HP " + state.enemyHp + "/" + state.enemyMaxHp);
+        System.out.println("복구 프로그램: " + state.recoveryCount + "개");
         System.out.println("AI 분석: " + state.charge + "/" + BattleManager.REQUIRED_CHARGE
                 + (state.charge >= BattleManager.REQUIRED_CHARGE
                    && state.outcome == ActionResult.Outcome.ONGOING ? " (호출 가능)" : ""));
