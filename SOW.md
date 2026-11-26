@@ -3,7 +3,7 @@
 - 문서 버전: 0.1 (팀 검토용)
 - 작성일: 2026-11-26
 - 개발 언어: Java
-- 패키지: `swg_eng_rpg_001`
+- 패키지: `swg_eng_rpg`
 - 저장소: https://github.com/LeeSan0919/sw-eng-rpg
 - 기반 코드: 수업에서 사용한 `GameCharacter.java`
 
