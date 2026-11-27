@@ -223,7 +223,7 @@ classDiagram
 | GameFrame | 전체 GUI 및 화면 전환 | A |
 | MapPanel | 지역 표시와 선택 | A |
 | BattlePanel | 전투 표시·입력·연출 | A |
-| InventoryDialog | 도구 목록·설명·사용 | A |
+| InventoryPanel | 도구 목록·설명·사용 | A |
 | ImageManager | 이미지 읽기·재사용·누락 시 대체 표시 | A |
 
 ### 7.3. 상태 데이터의 제약
@@ -243,6 +243,76 @@ classDiagram
 | clearedRegionIds | Set<String> | 중복 없는 공략 완료 지역 ID; 예정 |
 
 화면의 전투 Snapshot에는 `playerHp`, `playerMaxHp`, `playerStrength`, `playerLevel`, `experience`, `requiredExperience`, `enemyHp`, `enemyMaxHp`, `charge`, `turn`, `recoveryCount`, `outcome`을 포함한다. 적 이름·종류 ID는 전투 진입 시 화면에 별도로 제공하도록 설계한다.
+
+### 7.4. GUI 클래스 구조 (A 담당, 구현 예정)
+
+GUI 클래스는 백엔드의 `GameManager`와 `BattleManager`가 공개한 메서드만 호출하고, 결과는 `GameView`·`ActionResult`의 읽기 전용 데이터로만 받는다. 아래 도식은 모듈 경계를 보이기 위한 설계안이며 메서드 이름은 구현 중 바뀔 수 있다.
+
+```mermaid
+classDiagram
+    namespace Frontend_A {
+        class GameFrame
+        class MapPanel
+        class BattlePanel
+        class InventoryPanel
+        class ImageManager
+    }
+    namespace Backend_B {
+        class GameManager
+        class ActionResult
+    }
+    GameFrame *-- MapPanel
+    GameFrame *-- BattlePanel
+    GameFrame --> InventoryPanel
+    GameFrame --> GameManager
+    MapPanel ..> GameManager
+    BattlePanel ..> GameManager
+    InventoryPanel ..> GameManager
+    BattlePanel ..> ActionResult
+    MapPanel ..> ImageManager
+    BattlePanel ..> ImageManager
+    InventoryPanel ..> ImageManager
+    class GameFrame {
+        -GameManager game
+        -CardLayout cards
+        +showStart() void
+        +showMap() void
+        +showBattle() void
+        +showResult(Snapshot state) void
+    }
+    class MapPanel {
+        +update(GameView view) void
+        -onRegionSelected(String regionId) void
+    }
+    class BattlePanel {
+        -Timer timer
+        -boolean presenting
+        +startBattle(Snapshot state) void
+        -onAction(BattleAction action) void
+        -playEvents(ActionResult result) void
+        -showEvent(BattleEvent event) void
+        -updateButtons() void
+    }
+    class InventoryPanel {
+        +open(boolean inBattle) void
+        +close() void
+        -onUse() void
+    }
+    class ImageManager {
+        -Map~String, ImageIcon~ cache
+        +get(String key) ImageIcon
+    }
+```
+
+| 클래스 | 주요 메서드 | 호출하는 백엔드 API | 비고 |
+|---|---|---|---|
+| GameFrame | showStart, showMap, showBattle, showResult | startNewGame, loadGame, saveGame, getView | 창 하나에 `CardLayout`으로 화면 전환 |
+| MapPanel | update, onRegionSelected | moveTo | 실패한 `OperationResult`는 message만 안내 |
+| BattlePanel | startBattle, onAction, playEvents, showEvent, updateButtons | performBattleAction, completeBattlePresentation, canAct·canCallAiAgent·canUseRecovery | 8.2 절차를 그대로 구현. can 계열 3개는 현재 BattleManager에만 있어 GameManager 위임 메서드가 필요(14절 7번) |
+| InventoryPanel | open, close, onUse | 전투 중 performBattleAction(USE_RECOVERY), 전투 밖 useRecoveryItem | 조회만 하면 턴 소비 없음. 별도 창이 아니라 GameFrame 위에 덮는 패널(10.1) |
+| ImageManager | get | 없음 | 한 번 읽은 이미지는 Map에 보관(NFR-02), 없으면 대체 표시 |
+
+GUI 클래스는 `Hacker`·`SecurityProgram` 객체를 필드로 갖지 않는다. 버튼 활성화도 화면이 직접 계산하지 않고 `canAct()` 등 백엔드 조회 결과를 따른다.
 
 ## 8. 프런트엔드·백엔드 인터페이스
 
@@ -338,6 +408,93 @@ GUI 구성 도구는 Swing을 기준으로 한 검토안이며, 팀 개발 환�
 - ChatGPT 구독권은 구상 이미지의 예시 아이템이다. 실제 효과와 획득 조건이 확정되지 않았으므로 현재 필수 구현 및 필살기 사용 조건에 넣지 않는다.
 - 이미지 파일명과 대소문자를 실제 리소스와 맞추고, 누락 시 대체 표시와 안내를 제공한다.
 
+### 10.1. 화면 전환
+
+```mermaid
+stateDiagram-v2
+    [*] --> 시작
+    시작 --> 은신처: 새 게임 / 불러오기 성공
+    은신처 --> 지도: 탐험 시작
+    지도 --> 은신처: 은신처 선택
+    지도 --> 전투: 미공략 지역 이동
+    전투 --> 결과: 마지막 이벤트 연출 완료
+    결과 --> 지도: 승리 (최종 지역 아님)
+    결과 --> 클리어: 승리 (중앙 서버)
+    결과 --> 은신처: 패배
+    클리어 --> [*]
+```
+
+제안서의 게임 진행 흐름도와 같은 순서이다. 시작·은신처·지도·전투·결과·클리어 화면은 창 하나(`GameFrame`) 안에서 `CardLayout`으로 바꾼다. 창을 화면마다 따로 띄우면 창끼리 게임 상태를 넘겨야 하므로, 창은 하나로 두고 보이는 화면만 교체한다. 불러오기에 실패하면 화면을 바꾸지 않는다.
+
+인벤토리는 은신처·지도·전투 화면 위에 덮는 패널로 띄운다. 화면 전체에 반투명 막을 깔고 가운데에 인벤토리를 표시한다.
+
+- 닫기: 닫기 버튼, Esc 키, 인벤토리 바깥(막) 클릭.
+- 인벤토리가 열린 동안 막이 클릭을 받아 뒤 화면의 버튼은 눌리지 않는다.
+- 별도 모달 창(`JDialog`)을 쓰지 않는 이유: 모달 창은 바깥 클릭이 무시되어 바깥 클릭으로 닫을 수 없다. 비모달 창은 바깥 클릭이 뒤 화면에도 전달되어, 전투 중 공격 버튼 위를 누르면 닫히면서 공격까지 실행될 수 있다.
+
+### 10.2. 전투 버튼 활성화 조건
+
+| 버튼 | 활성화 조건 | 비활성 시 표시 |
+|---|---|---|
+| 공격 | canAct() | 연출 중에는 모든 버튼 잠금 |
+| 방어 | canAct() | 위와 같음 |
+| AI 에이전트 | canCallAiAgent() | 충전 n/3 표시 |
+| 복구 | canUseRecovery() | 수량 0 또는 최대 HP 안내 |
+
+버튼이 비활성이어도 백엔드는 요청 조건을 다시 검증한다(2절). 실패 결과가 오면 상태를 바꾸지 않고 message만 로그에 표시한다.
+
+### 10.3. 이벤트별 연출
+
+`ActionResult.events`를 앞에서부터 하나씩 표시한다. 한 이벤트마다 이미지 교체 → 로그 한 줄 추가 → 해당 이벤트의 state로 HP·충전 표시를 갱신하고, Swing `Timer`로 다음 이벤트로 넘어간다.
+
+한 이벤트를 보여 주는 시간은 이벤트 종류마다 다르게 둔다. 필살기 이미지는 화면 전체를 덮는 그림이라 일반 공격과 같은 시간이면 거의 보이지 않기 때문이다. 아래 값은 초기값이며 실제 화면을 보며 조정한다(14절 6번).
+
+- PLAYER_ATTACK, ENEMY_ATTACK, DEFEND, RECOVERY: 600ms
+- AI_AGENT: 1500ms
+- VICTORY, DEFEAT, REWARD: 1000ms
+
+시간 값은 `BattlePanel` 안의 EventType별 상수 한 곳에 모아 두고, 조정할 때 그 값만 바꾼다.
+
+| EventType | 해커 쪽 | 적 쪽 | 로그·수치 |
+|---|---|---|---|
+| PLAYER_ATTACK | 공격 이미지 | 피격 이미지 | message, damage |
+| DEFEND | 기본 이미지 + 방어막 테두리 | 기본 이미지 | message |
+| AI_AGENT | 필살기 이미지를 전투 화면 전체에 표시 | 피격 이미지 | message, damage |
+| RECOVERY | 기본 이미지 + 회복 수치 | 기본 이미지 | recovered |
+| ENEMY_ATTACK | 기본 이미지, 방어한 턴이면 방어막 유지 | 기본 이미지 | message, damage |
+| VICTORY | 기본 이미지 | 피격 이미지를 흐리게 표시 | message |
+| DEFEAT | 기본 이미지를 흐리게 표시 | 기본 이미지 | message |
+| REWARD | 변화 없음 | 변화 없음 | 경험치·레벨업 message |
+
+- 방어막, 방화벽 공격, 해커 피격, 넉다운 이미지는 아직 없다. 위 표처럼 테두리·흐림 처리와 텍스트로 대체하고, 이미지가 생기면 해당 칸만 바꾼다.
+- `ENEMY_ATTACK` 이벤트에는 방어 여부가 따로 없다. 같은 결과의 앞쪽에 `DEFEND` 이벤트가 있으면 방어한 턴으로 본다.
+
+### 10.4. 이미지 리소스 목록
+
+제안서 7절에서 각 그림에 붙인 용도를 따른다.
+
+| 키 | 용도 | 현재 파일 |
+|---|---|---|
+| hacker.idle | 해커 기본 | 검은 후드, 하얀 가면의 해커-2.png |
+| hacker.attack | 해커 공격 | 형광 코드 발사하는 가면 해커-4.png |
+| hacker.ultimate | AI 에이전트 필살기(전체 화면) | 거대한 로봇과 복면 해커.png |
+| firewall.idle | 방화벽 기본 | 핑크 방화벽의 거구 히어로.png |
+| firewall.hit | 방화벽 피격 | 방화벽, 강타에 날아가다 (1).png |
+| map | 지도 배경 | 형광 경로의 네트워크 지도-1.png |
+
+- 지도 그림에는 지역 이름과 잠금 표시가 그려져 있다. 접근·잠금·공략 상태는 그림 위에 버튼과 표시를 겹쳐 실제 상태대로 보여 준다.
+- `미니멀 해커 RPG 인벤토리-6.png`는 화면 시안이다. 인벤토리 창은 이 배치를 참고해 Swing 부품으로 만들고, 그림 자체는 쓰지 않는다.
+- `네온 그린 해커 게임 플로차트.png`는 제안서용 그림이고, 라임색 방화벽 골렘 그림 2장은 게임에 쓰지 않는다.
+- 코드에서는 위 키로만 이미지를 찾고, 키와 파일 경로의 대응은 `ImageManager` 한 곳에 둔다. 파일 이름이 바뀌어도 이 한 곳만 고친다.
+- 다른 지역의 적 이미지는 5.1의 적 종류가 정해진 뒤 추가한다.
+
+### 10.5. GUI 설계 근거
+
+- 연출을 Swing `Timer`로 하는 이유: Swing 화면은 이벤트 디스패치 스레드 하나에서 그려진다. 이 스레드에서 `Thread.sleep()`으로 기다리면 그동안 화면이 멈추므로, 타이머로 다음 이벤트를 예약한다(NFR-03).
+- 연출 중 입력을 잠그는 이유: 연출이 끝나기 전에 다음 행동을 보내면 화면이 아직 보여주지 않은 상태 위에서 계산이 진행된다. 백엔드도 `completePresentation` 전 요청을 거절하지만, 화면에서 먼저 막아 사용자가 거절 메시지를 보지 않게 한다(T-11).
+- 이벤트마다 state를 쓰는 이유: 최종 state만 쓰면 공격과 반격이 한 번에 반영되어 HP 변화 순서가 보이지 않는다. 이벤트별 state를 쓰면 화면이 계산을 다시 하지 않고도 순서대로 표시할 수 있다(NFR-04).
+- 이미지를 캐시하는 이유: 같은 이미지가 매 턴 반복되므로 처음 한 번만 파일에서 읽는다(NFR-02).
+
 ## 11. 비기능 요구사항
 
 | ID | 요구사항 | 구현 및 확인 기준 |
@@ -396,6 +553,8 @@ GUI 구성 도구는 Swing을 기준으로 한 검토안이며, 팀 개발 환�
 3. 제5절 지도 구성, 중앙 서버 해금 조건, 적 종류와 능력치.
 4. 재전투 허용 여부, 복구 프로그램 추가 지급, 패배 시 복귀·회복 규칙.
 5. 전투 밖 저장 제한과 Properties 저장 형식.
-6. GUI 연출 시간, 이미지 리소스 목록과 실제 파일 경로.
+6. GUI 연출 시간(10.3 이벤트 종류별 초기값), 이미지 리소스 목록과 실제 파일 경로(10.4).
+7. GUI가 버튼 활성화에 쓸 canAct·canCallAiAgent·canUseRecovery를 GameManager에서 위임할지, 전투 진입 시 적 이름·종류 ID를 어떤 자료형으로 넘길지.
+8. 지도 연결 구조: 지도 그림(은신처→웹·파일 서버→인증 서버→중앙 서버)과 5.1 검토안(은신처→웹 서버→파일·인증 서버→중앙 서버)이 다르다. 어느 쪽에 맞출지 정한다.
 
 위 항목을 합의하면 검토안 표기를 정리하고 문서 버전을 1.0으로 갱신한다.
