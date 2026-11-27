@@ -1,3 +1,5 @@
+package swg_eng_rpg;
+
 /** 방화벽 등 적의 공통 클래스. 같은 종류라도 전투마다 새 객체를 생성한다. */
 public class SecurityProgram extends GameCharacter {
     private final String typeId;

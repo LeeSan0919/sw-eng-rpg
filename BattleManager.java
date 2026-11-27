@@ -1,4 +1,4 @@
-package swg_eng_rpg_001;
+package swg_eng_rpg;
 
 import java.util.ArrayList;
 import java.util.Collections;

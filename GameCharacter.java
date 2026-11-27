@@ -1,3 +1,5 @@
+package swg_eng_rpg;
+
 /** 수업 GameCharacter를 확장한 공통 캐릭터. 턴 진행은 BattleManager가 담당한다. */
 public class GameCharacter {
     private String name;

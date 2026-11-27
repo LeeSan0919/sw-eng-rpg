@@ -1,3 +1,5 @@
+package swg_eng_rpg;
+
 /** 플레이어 캐릭터. 수치는 첫 구현용 임시 밸런스이다. */
 public class Hacker extends GameCharacter {
     public static final int INITIAL_HP = 100;
