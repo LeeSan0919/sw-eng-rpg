@@ -355,9 +355,9 @@ GUI 클래스는 `Hacker`·`SecurityProgram` 객체를 필드로 갖지 않는�
 | moveTo(String regionId) | OperationResult | 접근 검증 후 이동; 필요하면 전투 시작 |
 | performBattleAction(BattleAction action) | ActionResult | 현재 BattleManager에 위임 |
 | completeBattlePresentation(int turn) | boolean | 연출 완료와 전투 종료 후 지역 갱신 연결 |
-| canAct() | boolean | 진행 중인 전투가 있고 연출 대기 중이 아니면 true, 전투 밖이면 false. 현재 BattleManager에 위임 (A 요청, B 확인 필요) |
-| canCallAiAgent() | boolean | canAct()가 true이고 충전이 3이면 true. 현재 BattleManager에 위임 (A 요청, B 확인 필요) |
-| canUseRecovery() | boolean | canAct()가 true이고 복구 프로그램을 쓸 수 있으면(수량 1 이상, HP가 최대 미만) true. 현재 BattleManager에 위임 (A 요청, B 확인 필요) |
+| canAct() | boolean | 진행 중인 전투가 있고 연출 대기 중이 아니면 true, 전투 밖이면 false. 현재 BattleManager에 위임 |
+| canCallAiAgent() | boolean | canAct()가 true이고 충전이 3이면 true. 현재 BattleManager에 위임 |
+| canUseRecovery() | boolean | canAct()가 true이고 복구 프로그램을 쓸 수 있으면(수량 1 이상, HP가 최대 미만) true. 현재 BattleManager에 위임 |
 | restAtHideout() | OperationResult | 위치·전투 상태 확인 후 회복 |
 | useRecoveryItem() | OperationResult | 전투 밖 회복; 전투 중은 performBattleAction 사용 |
 | saveGame(Path path) | OperationResult | 전투 밖 저장 |
