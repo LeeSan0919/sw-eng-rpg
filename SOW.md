@@ -308,7 +308,7 @@ classDiagram
 |---|---|---|---|
 | GameFrame | showStart, showMap, showBattle, showResult | startNewGame, loadGame, saveGame, getView | 창 하나에 `CardLayout`으로 화면 전환 |
 | MapPanel | update, onRegionSelected | moveTo | 실패한 `OperationResult`는 message만 안내 |
-| BattlePanel | startBattle, onAction, playEvents, showEvent, updateButtons | performBattleAction, completeBattlePresentation, canAct·canCallAiAgent·canUseRecovery | 8.2 절차를 그대로 구현. can 계열 3개는 현재 BattleManager에만 있어 GameManager 위임 메서드가 필요(14절 7번) |
+| BattlePanel | startBattle, onAction, playEvents, showEvent, updateButtons | performBattleAction, completeBattlePresentation, canAct·canCallAiAgent·canUseRecovery | 8.2 절차를 그대로 구현. can 계열 3개는 8.3에 추가 요청 |
 | InventoryPanel | open, close, onUse | 전투 중 performBattleAction(USE_RECOVERY), 전투 밖 useRecoveryItem | 조회만 하면 턴 소비 없음. 별도 창이 아니라 GameFrame 위에 덮는 패널(10.1) |
 | ImageManager | get | 없음 | 한 번 읽은 이미지는 Map에 보관(NFR-02), 없으면 대체 표시 |
 
@@ -355,6 +355,9 @@ GUI 클래스는 `Hacker`·`SecurityProgram` 객체를 필드로 갖지 않는�
 | moveTo(String regionId) | OperationResult | 접근 검증 후 이동; 필요하면 전투 시작 |
 | performBattleAction(BattleAction action) | ActionResult | 현재 BattleManager에 위임 |
 | completeBattlePresentation(int turn) | boolean | 연출 완료와 전투 종료 후 지역 갱신 연결 |
+| canAct() | boolean | 진행 중인 전투가 있고 연출 대기 중이 아니면 true, 전투 밖이면 false. 현재 BattleManager에 위임 (A 요청, B 확인 필요) |
+| canCallAiAgent() | boolean | canAct()가 true이고 충전이 3이면 true. 현재 BattleManager에 위임 (A 요청, B 확인 필요) |
+| canUseRecovery() | boolean | canAct()가 true이고 복구 프로그램을 쓸 수 있으면(수량 1 이상, HP가 최대 미만) true. 현재 BattleManager에 위임 (A 요청, B 확인 필요) |
 | restAtHideout() | OperationResult | 위치·전투 상태 확인 후 회복 |
 | useRecoveryItem() | OperationResult | 전투 밖 회복; 전투 중은 performBattleAction 사용 |
 | saveGame(Path path) | OperationResult | 전투 밖 저장 |
@@ -554,7 +557,7 @@ stateDiagram-v2
 4. 재전투 허용 여부, 복구 프로그램 추가 지급, 패배 시 복귀·회복 규칙.
 5. 전투 밖 저장 제한과 Properties 저장 형식.
 6. GUI 연출 시간(10.3 이벤트 종류별 초기값), 이미지 리소스 목록과 실제 파일 경로(10.4).
-7. GUI가 버튼 활성화에 쓸 canAct·canCallAiAgent·canUseRecovery를 GameManager에서 위임할지, 전투 진입 시 적 이름·종류 ID를 어떤 자료형으로 넘길지.
+7. 전투 진입 시 적 이름·종류 ID를 어떤 자료형으로 넘길지.
 8. 지도 연결 구조: 지도 그림(은신처→웹·파일 서버→인증 서버→중앙 서버)과 5.1 검토안(은신처→웹 서버→파일·인증 서버→중앙 서버)이 다르다. 어느 쪽에 맞출지 정한다.
 
 위 항목을 합의하면 검토안 표기를 정리하고 문서 버전을 1.0으로 갱신한다.
